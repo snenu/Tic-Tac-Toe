@@ -49,24 +49,32 @@ The Linera application is split into:
 - `GameSync`: Synchronize game state after each move
 - `LeaveNotice`: Notify opponent when a player leaves
 
-## Local Development
+## Quick Start (Docker - Recommended)
 
-### Prerequisites
-
-- Docker and Docker Compose
-- Rust (for local development without Docker)
-
-### Using Docker (Recommended)
+**Just run one command and everything works!**
 
 ```bash
 docker compose up
 ```
 
-This will:
-1. Start a local Linera network with faucet
-2. Build the WASM binaries for the contract and service
-3. Publish the application
-4. Start the frontend on `http://localhost:5173`
+That's it! The setup will:
+1. ✅ Start a local Linera network with faucet
+2. ✅ Build the Rust contract and service to WASM
+3. ✅ Deploy the application on-chain
+4. ✅ Start the frontend development server
+
+**Access the app:** Open http://localhost:5173 in your browser
+
+**To stop:** Press `Ctrl+C` or run `docker compose down`
+
+**To rebuild:** `docker compose up --build`
+
+**To view logs:** `docker compose logs -f app`
+
+### Prerequisites
+
+- **Docker** and **Docker Compose** (that's all you need!)
+- No Rust, Node.js, or Linera CLI installation required - everything runs in Docker
 
 ### Manual Setup
 
