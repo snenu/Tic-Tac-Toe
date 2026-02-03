@@ -164,6 +164,45 @@ Use the provided Docker setup for local testing.
    ```
 3. Build and deploy the frontend to your hosting provider
 
+## Troubleshooting
+
+### Port Already in Use
+
+If you get port conflicts, stop other services using ports 5173, 8080, 9001, or 13001:
+
+```bash
+# On Linux/Mac
+lsof -ti:5173 | xargs kill -9
+lsof -ti:8080 | xargs kill -9
+
+# On Windows (PowerShell)
+netstat -ano | findstr :5173
+taskkill /PID <PID> /F
+```
+
+### Storage Already Initialized Error
+
+If you see "storage is already initialized", the cleanup script should handle this automatically. If it persists:
+
+```bash
+docker compose down
+docker compose up --force-recreate
+```
+
+### Frontend Not Loading
+
+1. Wait for the "Local: http://localhost:5173" message in logs
+2. Check that port 5173 is accessible: `curl http://localhost:5173`
+3. View logs: `docker compose logs -f app`
+
+### Rebuild Everything
+
+```bash
+docker compose down
+docker compose build --no-cache
+docker compose up
+```
+
 ## License
 
 This project is provided as-is for educational and demonstration purposes.

@@ -48,6 +48,11 @@ pnpm-debug.log*
 .wallet/
 *.db
 *.sqlite
+.linera/
+linera-*/
+server_*.json
+committee.json
+*.rocksdb
 
 # Docker
 .docker/
