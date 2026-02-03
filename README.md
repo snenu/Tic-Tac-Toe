@@ -207,6 +207,13 @@ docker compose build --no-cache
 docker compose up
 ```
 
+### Rust Version Error
+
+If you see an error like "rustc 1.85.0 is not supported" or "requires rustc 1.86.0":
+- The Dockerfile uses `rust:latest` which should have Rust 1.86+
+- If issues persist, rebuild: `docker compose build --no-cache`
+- The error means the Rust version in the image is too old
+
 ## License
 
 This project is provided as-is for educational and demonstration purposes.

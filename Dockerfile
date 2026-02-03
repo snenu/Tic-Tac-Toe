@@ -1,21 +1,23 @@
-# Use full rust image so rustup is available for wasm32 target
+# Use rust:1.86-slim 
 # Rust 1.86+ required for async-graphql@7.0.17 used by linera-service@0.15.7
-# Use latest stable Rust to ensure compatibility across systems
-FROM rust:latest
+FROM rust:1.86-slim
 
 SHELL ["bash", "-c"]
 
+# Install system dependencies (including curl)
 RUN apt-get update && apt-get install -y \
     pkg-config \
     protobuf-compiler \
     clang \
-    make
+    make \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN rustup target add wasm32-unknown-unknown
+# Install Linera services (exact same as working   example)
 RUN cargo install --locked linera-service@0.15.7 linera-storage-service@0.15.7
 
-RUN apt-get update && apt-get install -y curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install wasm32 target for building our contract
+RUN rustup target add wasm32-unknown-unknown
 
 # Install Node.js via nvm
 RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.40.3/install.sh | bash \
@@ -35,5 +37,5 @@ WORKDIR /build
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:5173 || exit 1
 
-# Fix line endings and run script
-ENTRYPOINT sed -i 's/\r$//' /build/run.bash 2>/dev/null || true && bash /build/run.bash
+# Fix line endings (remove \r) and run script
+ENTRYPOINT sed -i 's/\r$//' /build/run.bash && bash /build/run.bash
