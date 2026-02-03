@@ -15,46 +15,22 @@ echo ""
 # "storage is already initialized" when re-running (e.g. after docker compose down/up).
 # Storage can persist on the host via the .:/build volume mount, in the container's home,
 # or in /tmp (e.g. .tmp* dirs from linera net helper).
-echo ">>> Cleaning up previous Linera network storage..."
+echo ">>> Starting Linera network..."
 
-# First, try to get any existing network info and clear it
-set +e
-EXISTING_NETWORK=$(linera net helper 2>/dev/null | grep -E "LINERA_NETWORK|LINERA_NETWORK_DIR" | head -1 | cut -d'=' -f2 | tr -d "'\"")
-if [ -n "$EXISTING_NETWORK" ]; then
-  EXISTING_NETWORK="${EXISTING_NETWORK#rocksdb:}"
-  EXISTING_NETWORK="${EXISTING_NETWORK#file:}"
-  if [ -d "$EXISTING_NETWORK" ] || [ -f "$EXISTING_NETWORK" ]; then
-    echo "  - Found existing network storage: $EXISTING_NETWORK"
-    rm -rf "$EXISTING_NETWORK" 2>/dev/null || true
-    # Also clear parent if it's a linera directory
-    PARENT="$(dirname "$EXISTING_NETWORK")"
-    if [[ "$PARENT" == *"linera"* ]] && [ -d "$PARENT" ]; then
-      echo "  - Clearing parent: $PARENT"
-      rm -rf "$PARENT" 2>/dev/null || true
-    fi
-  fi
-fi
-set -e
+# Kill any existing processes first
+pkill -f "linera" 2>/dev/null || true
+sleep 2
 
-# Clear from common locations
-for base in /build "$HOME" /tmp; do
-  # Clear .linera directories
+# Clear from common locations (matching working example)
+for base in /build "$HOME"; do
   if [ -d "$base/.linera" ]; then
-    echo "  - Clearing: $base/.linera"
+    echo ">>> Clearing existing Linera network storage ($base/.linera)..."
     rm -rf "$base/.linera" 2>/dev/null || true
   fi
-  # Clear linera-* directories (match the pattern from error: linera-2026-02-03T...)
   for d in "$base"/linera-*; do
     if [ -d "$d" ]; then
-      echo "  - Clearing: $d"
+      echo ">>> Clearing existing Linera network storage ($d)..."
       rm -rf "$d" 2>/dev/null || true
-    fi
-  done
-  # Clear server config files
-  for f in "$base"/server_*.json "$base"/committee.json "$base"/*.rocksdb; do
-    if [ -f "$f" ] || [ -d "$f" ]; then
-      echo "  - Removing: $f"
-      rm -rf "$f" 2>/dev/null || true
     fi
   done
 done
@@ -62,194 +38,47 @@ done
 # Clear /tmp Linera dirs (helper may use e.g. /tmp/.tmpXXXX)
 for tmpd in /tmp/.tmp* /tmp/linera*; do
   if [ -d "$tmpd" ]; then
-    echo "  - Clearing temp: $tmpd"
+    echo ">>> Clearing existing Linera temp storage ($tmpd)..."
     rm -rf "$tmpd" 2>/dev/null || true
   fi
 done
 
-# Also clear any wallet/keystore that might conflict
-if [ -d "$HOME/.config/linera" ]; then
-  echo "  - Clearing wallet config: $HOME/.config/linera"
-  rm -rf "$HOME/.config/linera" 2>/dev/null || true
-fi
-
-# Kill any existing linera processes FIRST (before they can lock storage)
-echo ">>> Stopping any existing Linera processes..."
-pkill -f "linera.*net" 2>/dev/null || true
-pkill -f "linera.*server" 2>/dev/null || true
-pkill -f "linera.*faucet" 2>/dev/null || true
-pkill -f "linera.*shard" 2>/dev/null || true
-sleep 3
-
-# Try to bring down existing network if it exists
-echo ">>> Attempting to bring down existing network..."
-set +e
-linera net down 2>/dev/null || true
-set -e
-sleep 1
-
-echo ">>> Starting Linera network..."
+# Get helper and clear its paths
 eval "$(linera net helper)"
 
 # Clear the path the helper just set (it may point to existing storage from a previous run)
-echo ">>> Clearing helper storage paths..."
 for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORAGE LINERA_NET; do
   if [ -n "${!var:-}" ]; then
     path="${!var}"
-    # Handle different path formats
     path="${path#rocksdb:}"  # strip rocksdb: prefix if present
-    path="${path#file:}"     # strip file: prefix if present
     if [ -f "$path" ]; then
-      echo "  - Removing file: $path"
-      rm -f "$path" 2>/dev/null || true
       path="$(dirname "$path")"
     fi
     if [ -d "$path" ]; then
-      echo "  - Clearing directory: $path"
+      echo ">>> Clearing helper storage path ($path)..."
       rm -rf "$path" 2>/dev/null || true
-    fi
-    # Also try parent directory
-    if [ -n "$path" ] && [ "$path" != "/" ] && [ "$path" != "." ]; then
-      parent="$(dirname "$path")"
-      if [ -d "$parent" ] && [[ "$parent" == *"linera"* ]]; then
-        echo "  - Clearing parent: $parent"
-        rm -rf "$parent" 2>/dev/null || true
-      fi
     fi
   fi
 done 2>/dev/null || true
 
-# Additional aggressive cleanup: find and remove ANY linera-related directories/files
-# But exclude Rust build directories, node_modules, and client code
-echo ">>> Performing aggressive cleanup..."
-find /tmp /build "$HOME" -type d \( -name "linera-*" -o -name ".linera" \) ! -path "*/target/*" ! -path "*/node_modules/*" ! -path "*/client/*" 2>/dev/null | while read -r dir; do
-  if [ -d "$dir" ] && [[ "$dir" != *"/target/"* ]] && [[ "$dir" != *"/node_modules/"* ]] && [[ "$dir" != *"/client/"* ]]; then
-    echo "  - Removing: $dir"
+# Final aggressive cleanup - find and remove ALL linera-* directories
+echo ">>> Final cleanup - removing all linera networks..."
+find /build /tmp "$HOME" -maxdepth 3 -type d -name "linera-*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r dir; do
+  if [ -d "$dir" ]; then
+    echo "  - Force removing: $dir"
     rm -rf "$dir" 2>/dev/null || true
   fi
 done
 
-# Also find and remove any linera network files (but not Rust build artifacts)
-find /tmp /build "$HOME" -type f \( -name "*linera*" -o -name "server_*.json" -o -name "committee.json" \) ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r file; do
-  if [ -f "$file" ]; then
-    echo "  - Removing file: $file"
-    rm -f "$file" 2>/dev/null || true
-  fi
-done
-
-# Clear any RocksDB databases that might be linera storage
-find /tmp /build "$HOME" -type d -name "*.rocksdb" 2>/dev/null | while read -r dbdir; do
-  if [ -d "$dbdir" ]; then
-    echo "  - Removing RocksDB: $dbdir"
-    rm -rf "$dbdir" 2>/dev/null || true
-  fi
-done
-
 sleep 1
 
-# Final check: clear any storage that the helper might have just pointed to
-echo ">>> Final cleanup check..."
-eval "$(linera net helper)" 2>/dev/null || true
-for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORAGE LINERA_NET; do
-  if [ -n "${!var:-}" ]; then
-    path="${!var}"
-    path="${path#rocksdb:}"
-    path="${path#file:}"
-    if [ -n "$path" ] && [ "$path" != "/" ]; then
-      if [ -f "$path" ] || [ -d "$path" ]; then
-        echo "  - Final cleanup: $path"
-        rm -rf "$path" 2>/dev/null || true
-      fi
-      # Also check parent
-      parent="$(dirname "$path" 2>/dev/null || echo '')"
-      if [ -n "$parent" ] && [ "$parent" != "/" ] && [ "$parent" != "." ] && [[ "$parent" == *"linera"* ]]; then
-        if [ -d "$parent" ]; then
-          echo "  - Final cleanup parent: $parent"
-          rm -rf "$parent" 2>/dev/null || true
-        fi
-      fi
-    fi
-  fi
-done 2>/dev/null || true
-
-# One more aggressive find and remove - including timestamped networks like "linera-2026-02-03T..."
-# But exclude Rust build directories and node_modules
-echo ">>> Last aggressive cleanup pass..."
-find /build /tmp "$HOME" -maxdepth 4 \( -type d -name "linera-*" -o -type d -name ".linera" \) ! -path "*/target/*" ! -path "*/node_modules/*" ! -path "*/client/*" 2>/dev/null | while read -r item; do
-  if [ -e "$item" ] && [[ "$item" != *"/target/"* ]] && [[ "$item" != *"/node_modules/"* ]]; then
-    echo "  - Removing: $item"
-    rm -rf "$item" 2>/dev/null || true
-  fi
-done
-
-# Also check for any RocksDB lock files that might prevent deletion
-find /build /tmp "$HOME" -name "LOCK" -o -name "*.lock" 2>/dev/null | while read -r lockfile; do
-  if [ -f "$lockfile" ] && [[ "$(dirname "$lockfile")" == *"linera"* ]]; then
-    echo "  - Removing lock: $lockfile"
-    rm -f "$lockfile" 2>/dev/null || true
-  fi
-done
-
-sleep 1
-
-echo ">>> Starting fresh Linera network..."
-# Start network directly (linera_spawn has xargs issues in Docker)
-# Filter out xargs errors and start in background
-linera net up --with-faucet > /tmp/linera_net.log 2>&1 &
-LINERA_NET_PID=$!
-echo ">>> Linera network starting (PID: $LINERA_NET_PID)..."
-
-# Wait a moment and check if it started successfully
-sleep 3
-
-# Check for storage initialization errors
-if grep -q "storage is already initialized" /tmp/linera_net.log 2>/dev/null; then
-  echo ">>> ERROR: Storage still exists, performing emergency cleanup..."
-  
-  # Extract network name from error
-  NETWORK_NAME=$(grep -oE "linera-[0-9T:-]+" /tmp/linera_net.log 2>/dev/null | head -1)
-  if [ -n "$NETWORK_NAME" ]; then
-    echo "  - Removing network: $NETWORK_NAME"
-    find /build /tmp "$HOME" -type d -name "$NETWORK_NAME" 2>/dev/null | while read -r netdir; do
-      echo "    Removing: $netdir"
-      rm -rf "$netdir" 2>/dev/null || true
-    done
-  fi
-  
-  # Kill the failed process
-  kill $LINERA_NET_PID 2>/dev/null || true
-  sleep 1
-  
-  # Clear all linera networks one more time (exclude Rust build dirs)
-  find /build /tmp "$HOME" -type d -name "linera-*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r dir; do
-    if [[ "$dir" != *"/target/"* ]] && [[ "$dir" != *"/node_modules/"* ]]; then
-      echo "  - Emergency removal: $dir"
-      rm -rf "$dir" 2>/dev/null || true
-    fi
-  done
-  
-  # Clear helper paths again
-  eval "$(linera net helper)" 2>/dev/null || true
-  for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORAGE LINERA_NET; do
-    if [ -n "${!var:-}" ]; then
-      path="${!var}"
-      path="${path#rocksdb:}"
-      path="${path#file:}"
-      [ -n "$path" ] && [ "$path" != "/" ] && rm -rf "$path" 2>/dev/null || true
-    fi
-  done
-  
-  sleep 2
-  echo ">>> Retrying network start after emergency cleanup..."
-  linera net up --with-faucet > /tmp/linera_net.log 2>&1 &
-  LINERA_NET_PID=$!
+# Start network (use linera_spawn like working example, but handle xargs errors)
+linera_spawn linera net up --with-faucet 2>&1 | grep -v "xargs.*kill" || {
+  # Fallback if linera_spawn has issues
+  echo ">>> Starting network directly..."
+  linera net up --with-faucet &
   sleep 3
-fi
-
-# Show network startup log (filter out xargs errors)
-if [ -f /tmp/linera_net.log ]; then
-  grep -v "xargs.*kill" /tmp/linera_net.log 2>/dev/null || true
-fi
+}
 
 # Wait for faucet to be ready
 echo ">>> Waiting for faucet to be ready..."
