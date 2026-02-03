@@ -114,6 +114,8 @@ export const LineraContextProvider = ({ children }) => {
   const syncMinHeightRef = useRef(0);
   const refreshDebounceTimerRef = useRef(null);
   const lastSnapshotRef = useRef({});
+  const initInProgressRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const gql = useCallback(async (queryOrMutation) => {
     if (!appRef.current) throw new Error('Linera app not initialized');
@@ -194,6 +196,7 @@ export const LineraContextProvider = ({ children }) => {
   }, [refresh]);
 
   const startNotifications = useCallback(() => {
+    if (!isMountedRef.current) return;
     if (!chainRef.current || typeof chainRef.current.onNotification !== 'function') return;
     if (typeof notificationUnsubRef.current === 'function') {
       try {
@@ -234,80 +237,100 @@ export const LineraContextProvider = ({ children }) => {
   }, [chainId, scheduleRefresh, syncUnlocked]);
 
   const initLinera = useCallback(async () => {
-    setInitError('');
-    setInitStage('Initializing wallet...');
-    setReady(false);
-    setSyncHeight(null);
-    setSyncUnlocked(true);
-    setGame(null);
-    setLastNotification(null);
+    // Prevent concurrent initialization
+    if (initInProgressRef.current) return;
+    initInProgressRef.current = true;
 
-    if (!applicationId) {
-      setInitError('Missing VITE_LINERA_APPLICATION_ID');
-      setInitStage('Configuration error');
-      return;
-    }
-
-    ensureWasmInstantiateStreamingFallback();
-    setInitStage('Initializing Linera...');
     try {
-      await linera.initialize();
-    } catch {}
+      setInitError('');
+      setInitStage('Initializing wallet...');
+      setReady(false);
+      setSyncHeight(null);
+      setSyncUnlocked(true);
+      setGame(null);
+      setLastNotification(null);
 
-    setInitStage('Preparing mnemonic...');
-    let mnemonic = '';
-    try {
-      mnemonic = localStorage.getItem('linera_mnemonic') || '';
-    } catch {}
-    if (!mnemonic) {
-      const generated = Wallet.createRandom();
-      const phrase = generated.mnemonic?.phrase;
-      if (!phrase) {
-        setInitError('Failed to generate mnemonic');
-        setInitStage('Mnemonic generation failed');
+      if (!applicationId) {
+        setInitError('Missing VITE_LINERA_APPLICATION_ID');
+        setInitStage('Configuration error');
         return;
       }
-      mnemonic = phrase;
+
+      ensureWasmInstantiateStreamingFallback();
+      setInitStage('Initializing Linera...');
       try {
-        localStorage.setItem('linera_mnemonic', mnemonic);
-      } catch {}
-    }
-
-    try {
-      setInitStage('Creating wallet...');
-      const signer = linera.signer.PrivateKey.fromMnemonic(mnemonic);
-      const faucet = new linera.Faucet(faucetUrl);
-      const owner = signer.address();
-
-      const wallet = await faucet.createWallet();
-      setInitStage('Creating microchain...');
-      const newChainId = await faucet.claimChain(wallet, owner);
-
-      setInitStage('Connecting to application...');
-      const clientInstance = await new linera.Client(wallet, signer, { skipProcessInbox: false });
-      const chain = await clientInstance.chain(newChainId);
-      const application = await chain.application(applicationId);
-
-      clientRef.current = clientInstance;
-      chainRef.current = chain;
-      appRef.current = application;
-      let minHeight = 0;
-      try {
-        const localValue = localStorage.getItem(syncHeightStorageKey(newChainId)) || '';
-        minHeight = parseHeightNumber(localValue) ?? 0;
-      } catch {
-        minHeight = 0;
+        await linera.initialize();
+        // Small delay to ensure WASM is fully loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (e) {
+        console.warn('Linera initialization warning:', e);
       }
-      syncMinHeightRef.current = minHeight;
-      setSyncUnlocked(minHeight <= 0);
-      setChainId(newChainId);
-      setReady(true);
-      setInitStage('Ready');
-    } catch (e) {
-      setInitError(String(e?.message || e));
-      setInitStage('Initialization failed');
+
+      setInitStage('Preparing mnemonic...');
+      let mnemonic = '';
+      try {
+        mnemonic = localStorage.getItem('linera_mnemonic') || '';
+      } catch {}
+      if (!mnemonic) {
+        const generated = Wallet.createRandom();
+        const phrase = generated.mnemonic?.phrase;
+        if (!phrase) {
+          setInitError('Failed to generate mnemonic');
+          setInitStage('Mnemonic generation failed');
+          return;
+        }
+        mnemonic = phrase;
+        try {
+          localStorage.setItem('linera_mnemonic', mnemonic);
+        } catch {}
+      }
+
+      try {
+        setInitStage('Creating wallet...');
+        const signer = linera.signer.PrivateKey.fromMnemonic(mnemonic);
+        const faucet = new linera.Faucet(faucetUrl);
+        const owner = signer.address();
+
+        const wallet = await faucet.createWallet();
+        setInitStage('Creating microchain...');
+        const newChainId = await faucet.claimChain(wallet, owner);
+
+        setInitStage('Connecting to application...');
+        const clientInstance = await new linera.Client(wallet, signer, { skipProcessInbox: false });
+        const chain = await clientInstance.chain(newChainId);
+        const application = await chain.application(applicationId);
+
+        clientRef.current = clientInstance;
+        chainRef.current = chain;
+        appRef.current = application;
+        let minHeight = 0;
+        try {
+          const localValue = localStorage.getItem(syncHeightStorageKey(newChainId)) || '';
+          minHeight = parseHeightNumber(localValue) ?? 0;
+        } catch {
+          minHeight = 0;
+        }
+        syncMinHeightRef.current = minHeight;
+        setSyncUnlocked(minHeight <= 0);
+        setChainId(newChainId);
+        setReady(true);
+        setInitStage('Ready');
+      } catch (e) {
+        setInitError(String(e?.message || e));
+        setInitStage('Initialization failed');
+        console.error('Linera initialization error:', e);
+      }
+    } finally {
+      initInProgressRef.current = false;
     }
   }, [applicationId, faucetUrl]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     initLinera();

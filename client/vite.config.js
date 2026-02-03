@@ -10,5 +10,16 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Resource-Policy': 'same-origin',
+    },
+  },
+  optimizeDeps: {
+    exclude: ['@linera/client'],
+  },
+  worker: {
+    format: 'es',
   },
 });
