@@ -1,7 +1,7 @@
 # Use full rust image so rustup is available for wasm32 target
-# Rust 1.85+ required for edition 2024 (async-graphql-value used by linera-service)
-# Use explicit version so --no-cache rebuild pulls correct image
-FROM rust:1.85.0-bookworm
+# Rust 1.86+ required for async-graphql@7.0.17 used by linera-service@0.15.7
+# Use latest stable Rust to ensure compatibility across systems
+FROM rust:latest
 
 SHELL ["bash", "-c"]
 
