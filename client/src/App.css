@@ -1,0 +1,10 @@
+.app {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #e6f4f8 0%, #b8dce8 30%, #ffffff 70%);
+  padding: 1rem;
+}
+
+.app-container {
+  max-width: 560px;
+  margin: 0 auto;
+}

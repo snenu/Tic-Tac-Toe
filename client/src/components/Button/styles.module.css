@@ -1,0 +1,21 @@
+.btn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, #2d7a96 0%, #1a5f7a 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(26, 95, 122, 0.3);
+}
+
+.btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3a8aaa 0%, #2d7a96 100%);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,24 @@
+.container {
+  padding: 2rem 1.5rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(26, 95, 122, 0.12);
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a5f7a;
+}
+
+.message {
+  margin: 0 0 1.5rem;
+  font-size: 1.1rem;
+  color: #2d7a96;
+}
+
+.actions {
+  margin-top: 1rem;
+}

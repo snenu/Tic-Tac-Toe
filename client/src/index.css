@@ -1,0 +1,17 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #e6f4f8 0%, #add8e6 50%, #ffffff 100%);
+  min-height: 100vh;
+  color: #1a5f7a;
+}
+
+#root {
+  min-height: 100vh;
+}

@@ -1,0 +1,63 @@
+.container {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(26, 95, 122, 0.12);
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a5f7a;
+  text-align: center;
+}
+
+.banner {
+  padding: 0.75rem 1rem;
+  background: #e6f4f8;
+  border-radius: 8px;
+  color: #1a5f7a;
+  font-size: 0.9rem;
+}
+
+.notification {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #2d7a96;
+  text-align: center;
+}
+
+.waiting {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: #2d7a96;
+  text-align: center;
+}
+
+.turnInfo {
+  margin-bottom: 0.5rem;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.myTurn {
+  color: #1a5f7a;
+}
+
+.oppTurn {
+  color: #5a9fb0;
+}
+
+.ended {
+  margin: 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a5f7a;
+  text-align: center;
+}
+
+.actions {
+  margin-top: 1.25rem;
+}

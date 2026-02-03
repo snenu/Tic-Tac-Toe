@@ -1,0 +1,49 @@
+.wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 1;
+  background: #1a5f7a;
+  padding: 4px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(26, 95, 122, 0.35);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a5f7a;
+  background: #e6f4f8;
+  border: none;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.cellClickable {
+  cursor: pointer;
+  background: #fff;
+}
+
+.cellClickable:hover {
+  background: #b8dce8;
+}
+
+.cellFilled {
+  cursor: default;
+}
+
+.cellFilled:hover {
+  background: #e6f4f8;
+}
