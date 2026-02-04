@@ -323,7 +323,7 @@ export const LineraContextProvider = ({ children }) => {
         setReady(true);
         setInitStage('Ready');
       } catch (e) {
-        setInitError(String(e?.message || e));
+        setInitError(String(e?.message ?? e));
         setInitStage('Initialization failed');
         console.error('Linera initialization error:', e);
       }

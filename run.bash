@@ -17,11 +17,7 @@ echo ""
 # or in /tmp (e.g. .tmp* dirs from linera net helper).
 echo ">>> Starting Linera network..."
 
-# Kill any existing processes first
-pkill -f "linera" 2>/dev/null || true
-sleep 2
-
-# Clear from common locations (matching working example)
+# Clear from common locations (matching stonepapersessior example)
 for base in /build "$HOME"; do
   if [ -d "$base/.linera" ]; then
     echo ">>> Clearing existing Linera network storage ($base/.linera)..."
@@ -34,12 +30,6 @@ for base in /build "$HOME"; do
     fi
   done
 done
-# Clear wallet so publish uses the chain we just request (old wallet has chains from previous run = Blobs not found)
-if [ -d "$HOME/.config/linera" ]; then
-  echo ">>> Clearing existing wallet (so we use fresh chain for publish)..."
-  rm -rf "$HOME/.config/linera" 2>/dev/null || true
-fi
-
 # Clear /tmp Linera dirs (helper may use e.g. /tmp/.tmpXXXX)
 for tmpd in /tmp/.tmp* /tmp/linera*; do
   if [ -d "$tmpd" ]; then
@@ -67,43 +57,32 @@ for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORA
   fi
 done 2>/dev/null || true
 
-# Final aggressive cleanup - find and remove ALL linera-* directories (avoids "storage is already initialized")
-echo ">>> Final cleanup - removing all linera networks..."
-find /build /tmp "$HOME" -maxdepth 4 -type d -name "linera-*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r dir; do
-  if [ -d "$dir" ]; then
-    echo "  - Force removing: $dir"
-    rm -rf "$dir" 2>/dev/null || true
-  fi
-done
-# Remove any .linera or linera db files under /tmp (helper often uses /tmp/.tmp*)
-find /tmp -maxdepth 2 \( -name ".tmp*" -o -name "linera*" \) -type d 2>/dev/null | while read -r dir; do
-  [ -d "$dir" ] && rm -rf "$dir" 2>/dev/null || true
-done
-
 sleep 2
+# Short extra delay so volume/filesystem can release handles (helps on Windows)
+sleep 1
 
-# Start network (match reference: linera_spawn only, no grep/fallback)
+# Start network (run in main shell so validator and faucet stay alive)
 linera_spawn linera net up --with-faucet
 
-# Wait for faucet to be ready
+# Wait for faucet to be ready (give it time to bind to 8080)
 echo ">>> Waiting for faucet to be ready..."
-sleep 5
-for i in {1..30}; do
+sleep 10
+for i in {1..45}; do
   if curl -s http://localhost:8080 > /dev/null 2>&1; then
     echo ">>> Faucet is ready!"
     break
   fi
-  echo ">>> Waiting for faucet... ($i/30)"
+  echo ">>> Waiting for faucet... ($i/45)"
   sleep 1
 done
 
 export LINERA_FAUCET_URL=http://localhost:8080
 
-# Initialize wallet (will skip if already exists)
-echo ">>> Initializing wallet..."
-set +e
-linera wallet init --faucet="$LINERA_FAUCET_URL" 2>&1 | grep -v "already exists" || true
-set -e
+# Initialize wallet only if not already present (like stonepapersessior)
+if [ ! -f ~/.config/linera/wallet.json ]; then
+  echo ">>> Initializing wallet..."
+  linera wallet init --faucet="$LINERA_FAUCET_URL" || true
+fi
 
 echo ">>> Requesting chain..."
 set +e
@@ -113,7 +92,7 @@ set -e
 
 # Wait for the new chain to propagate to the validator (avoids ChainDescription "Blobs not found")
 echo ">>> Waiting for chain to propagate..."
-sleep 35
+sleep 15
 
 echo ">>> Building Rust contract and service..."
 echo "  This may take 30-60 seconds..."
@@ -124,7 +103,7 @@ echo "  ✓ Build completed successfully"
 
 # Wait so validator is ready for blob upload (avoids ContractBytecode/ServiceBytecode "Blobs not found" on first try)
 echo ">>> Waiting for validator before publish..."
-sleep 25
+sleep 15
 
 echo ">>> Publishing and creating application..."
 LINERA_APPLICATION_ID=""
