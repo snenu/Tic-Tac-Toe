@@ -22,8 +22,7 @@ if [ -d "$HOME/.config/linera" ] || [ -f "$HOME/.config/linera/wallet.json" ]; t
   echo ">>> Clearing wallet for fresh start..."
   rm -rf "$HOME/.config/linera" 2>/dev/null || true
 fi
-
-# Clear from common locations (matching stonepapersessior example)
+ 
 for base in /build "$HOME"; do
   if [ -d "$base/.linera" ]; then
     echo ">>> Clearing existing Linera network storage ($base/.linera)..."
@@ -44,8 +43,7 @@ for tmpd in /tmp/.tmp* /tmp/linera*; do
   fi
 done
 
-# Aggressive find-based cleanup (catches any remaining linera-* dirs, e.g. on Windows volume mounts)
-for base in /build /tmp "$HOME"; do
+ for base in /build /tmp "$HOME"; do
   [ "$base" = "/" ] && continue
   while IFS= read -r -d '' d; do
     [ -n "$d" ] && [ -d "$d" ] && rm -rf "$d" 2>/dev/null || true
@@ -58,8 +56,7 @@ done < <(find /tmp -maxdepth 2 -type d \( -name ".tmp*" -o -name "linera*" \) -p
 # Get helper and clear its paths
 eval "$(linera net helper)"
 
-# Clear the path the helper just set (it may point to existing storage from a previous run)
-for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORAGE LINERA_NET; do
+ for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORAGE LINERA_NET; do
   if [ -n "${!var:-}" ]; then
     path="${!var}"
     path="${path#rocksdb:}"  # strip rocksdb: prefix if present
@@ -78,8 +75,7 @@ sleep 2
 # Short extra delay so volume/filesystem can release handles (helps on Windows)
 sleep 1
 
-# Start network (run in main shell so validator and faucet stay alive)
-linera_spawn linera net up --with-faucet
+ linera_spawn linera net up --with-faucet
 
 # Wait for faucet to be ready (give it time to bind to 8080)
 echo ">>> Waiting for faucet to be ready..."
