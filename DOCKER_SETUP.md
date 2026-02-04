@@ -15,7 +15,7 @@ That's it! Everything runs automatically.
 ## What's Included
 
 ### 1. Dockerfile
-- ✅ Rust 1.85.0 with WASM target support
+- ✅ Rust 1.86 with WASM target support
 - ✅ Linera CLI tools (linera-service, linera-storage-service)
 - ✅ Node.js via NVM (lts/krypton)
 - ✅ All build dependencies

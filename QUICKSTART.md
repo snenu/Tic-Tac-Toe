@@ -90,6 +90,10 @@ docker compose up --force-recreate
 
 No other software needed! Everything runs in Docker.
 
+### Running on a different machine
+
+Clone the repo, ensure Docker is running, then run `docker compose up` (or `docker compose up --force-recreate` for a clean start). No manual env or Rust/Node install is required—everything runs in Docker.
+
 ---
 
 ## Next Steps

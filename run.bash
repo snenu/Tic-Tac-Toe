@@ -72,13 +72,8 @@ done
 
 sleep 1
 
-# Start network (use linera_spawn like working example, but handle xargs errors)
-linera_spawn linera net up --with-faucet 2>&1 | grep -v "xargs.*kill" || {
-  # Fallback if linera_spawn has issues
-  echo ">>> Starting network directly..."
-  linera net up --with-faucet &
-  sleep 3
-}
+# Start network (match reference: linera_spawn only, no grep/fallback)
+linera_spawn linera net up --with-faucet
 
 # Wait for faucet to be ready
 echo ">>> Waiting for faucet to be ready..."

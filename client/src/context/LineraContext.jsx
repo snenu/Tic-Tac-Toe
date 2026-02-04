@@ -329,6 +329,16 @@ export const LineraContextProvider = ({ children }) => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (typeof notificationUnsubRef.current === 'function') {
+        try {
+          notificationUnsubRef.current();
+        } catch {}
+        notificationUnsubRef.current = null;
+      }
+      if (refreshDebounceTimerRef.current) {
+        clearTimeout(refreshDebounceTimerRef.current);
+        refreshDebounceTimerRef.current = null;
+      }
     };
   }, []);
 

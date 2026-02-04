@@ -6,11 +6,18 @@ import styles from './styles.module.css';
 
 export default function Result() {
   const navigate = useNavigate();
-  const { ready, chainId, winnerChainId, leaveMatch } = useContext(LineraContext);
+  const { ready, chainId, game, matchStatus, winnerChainId, leaveMatch } = useContext(LineraContext);
+
+  const status = matchStatus ?? game?.status ?? '';
+  const hasEndedGame =
+    status === 'Ended' ||
+    status === 'Draw' ||
+    Boolean(winnerChainId);
 
   const hasWinner = Boolean(winnerChainId);
-  const isDraw = !hasWinner;
+  const isDraw = hasEndedGame && !hasWinner;
   const didWin = hasWinner && winnerChainId === chainId;
+  const noGameResult = ready && !hasEndedGame;
 
   const handleBackToLobby = async () => {
     try {
@@ -24,6 +31,18 @@ export default function Result() {
     return (
       <div className={styles.container}>
         <p className={styles.message}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (noGameResult) {
+    return (
+      <div className={styles.container}>
+        <h1 className={styles.title}>Game over</h1>
+        <p className={styles.message}>No game result.</p>
+        <div className={styles.actions}>
+          <Button label="Back to lobby" onClick={handleBackToLobby} />
+        </div>
       </div>
     );
   }

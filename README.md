@@ -152,6 +152,32 @@ And mutations:
 - `makeMove(row: Int, col: Int)`: Make a move
 - `leaveMatch`: Leave the current match
 
+## Running on Different Machines
+
+Anyone can run the app on their own machine with no manual configuration:
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd Tic-Tac-Toe
+   ```
+
+2. **Ensure Docker is running:**
+   ```bash
+   docker --version
+   docker compose version
+   ```
+
+3. **Start the application:**
+   ```bash
+   docker compose up
+   ```
+   For a clean run (e.g. after a previous run): `docker compose up --force-recreate`
+
+4. **That's it.** The setup is fully automated: Linera network starts, the contract builds and deploys, `.env` is generated, and the frontend starts. No Rust, Node.js, or Linera CLI installation required. Open **http://localhost:5173** in your browser.
+
+**Port requirements:** 5173 (frontend), 8080 (faucet), 9001 (shard proxy), 13001 (shard). If a port is in use, change it in `compose.yaml`.
+
 ## Deployment
 
 ### Local Network
