@@ -17,6 +17,12 @@ echo ""
 # or in /tmp (e.g. .tmp* dirs from linera net helper).
 echo ">>> Starting Linera network..."
 
+# Always clear wallet so we get a fresh chain on every startup (avoids stale network references).
+if [ -d "$HOME/.config/linera" ] || [ -f "$HOME/.config/linera/wallet.json" ]; then
+  echo ">>> Clearing wallet for fresh start..."
+  rm -rf "$HOME/.config/linera" 2>/dev/null || true
+fi
+
 # Clear from common locations (matching stonepapersessior example)
 for base in /build "$HOME"; do
   if [ -d "$base/.linera" ]; then
@@ -37,6 +43,17 @@ for tmpd in /tmp/.tmp* /tmp/linera*; do
     rm -rf "$tmpd" 2>/dev/null || true
   fi
 done
+
+# Aggressive find-based cleanup (catches any remaining linera-* dirs, e.g. on Windows volume mounts)
+for base in /build /tmp "$HOME"; do
+  [ "$base" = "/" ] && continue
+  while IFS= read -r -d '' d; do
+    [ -n "$d" ] && [ -d "$d" ] && rm -rf "$d" 2>/dev/null || true
+  done < <(find "$base" -maxdepth 4 -type d -name "linera-*" -print0 2>/dev/null || true)
+done
+while IFS= read -r -d '' d; do
+  [ -n "$d" ] && [ -d "$d" ] && rm -rf "$d" 2>/dev/null || true
+done < <(find /tmp -maxdepth 2 -type d \( -name ".tmp*" -o -name "linera*" \) -print0 2>/dev/null || true)
 
 # Get helper and clear its paths
 eval "$(linera net helper)"
@@ -78,11 +95,9 @@ done
 
 export LINERA_FAUCET_URL=http://localhost:8080
 
-# Initialize wallet only if not already present (like stonepapersessior)
-if [ ! -f ~/.config/linera/wallet.json ]; then
-  echo ">>> Initializing wallet..."
-  linera wallet init --faucet="$LINERA_FAUCET_URL" || true
-fi
+# Initialize wallet (we cleared it above for a fresh start)
+echo ">>> Initializing wallet..."
+linera wallet init --faucet="$LINERA_FAUCET_URL" || true
 
 echo ">>> Requesting chain..."
 set +e

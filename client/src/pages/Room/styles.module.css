@@ -19,6 +19,24 @@
   border-radius: 8px;
   color: #1a5f7a;
   font-size: 0.9rem;
+  text-align: center;
+}
+
+.refreshButton {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  background: #1a5f7a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.refreshButton:hover {
+  background: #2d7a96;
 }
 
 .notification {

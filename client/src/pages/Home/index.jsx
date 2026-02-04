@@ -66,6 +66,15 @@ export default function Home() {
           {initError ? (
             <>
               <strong>Error:</strong> {initError}
+              {initError.includes('reconnect') && (
+                <button
+                  type="button"
+                  className={styles.refreshButton}
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh page
+                </button>
+              )}
             </>
           ) : (
             <>

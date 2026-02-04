@@ -87,7 +87,22 @@ export default function Room() {
     return (
       <div className={styles.container}>
         <div className={styles.banner}>
-          {initError ? `Error: ${initError}` : 'Initializing Linera...'}
+          {initError ? (
+            <>
+              Error: {initError}
+              {initError.includes('reconnect') && (
+                <button
+                  type="button"
+                  className={styles.refreshButton}
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh page
+                </button>
+              )}
+            </>
+          ) : (
+            'Initializing Linera...'
+          )}
         </div>
       </div>
     );
