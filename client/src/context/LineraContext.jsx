@@ -82,6 +82,12 @@ const escapeGqlString = (value) =>
     .replace(/\r/g, '\\r')
     .replace(/\n/g, '\\n');
 
+/** Linera expects chain/application IDs as hex (and optional ':'). Strip hyphens, spaces, etc. */
+const normalizeLineraId = (id) => {
+  if (id == null || typeof id !== 'string') return '';
+  return String(id).replace(/[^0-9a-fA-F:]/g, '');
+};
+
 const defaultPlayerName = (chainId) => {
   if (!chainId) return 'Player';
   return `Player-${String(chainId).slice(0, 6)}`;
@@ -250,8 +256,9 @@ export const LineraContextProvider = ({ children }) => {
       setGame(null);
       setLastNotification(null);
 
-      if (!applicationId) {
-        setInitError('Missing VITE_LINERA_APPLICATION_ID');
+      const normalizedAppIdFromEnv = normalizeLineraId(applicationId);
+      if (!normalizedAppIdFromEnv) {
+        setInitError('Missing or invalid VITE_LINERA_APPLICATION_ID (expected hex, may contain colons)');
         setInitStage('Configuration error');
         return;
       }
@@ -298,7 +305,7 @@ export const LineraContextProvider = ({ children }) => {
         setInitStage('Connecting to application...');
         const clientInstance = await new linera.Client(wallet, signer, { skipProcessInbox: false });
         const chain = await clientInstance.chain(newChainId);
-        const application = await chain.application(applicationId);
+        const application = await chain.application(normalizedAppIdFromEnv);
 
         clientRef.current = clientInstance;
         chainRef.current = chain;
@@ -375,7 +382,7 @@ export const LineraContextProvider = ({ children }) => {
 
   const joinMatch = useCallback(
     async (hostChainId, playerName) => {
-      const host = escapeGqlString(hostChainId);
+      const host = escapeGqlString(normalizeLineraId(hostChainId) || hostChainId);
       const name = escapeGqlString(playerName || defaultPlayerName(chainId));
       await gql(`mutation { joinMatch(hostChainId: "${host}", playerName: "${name}") }`);
       await refresh();

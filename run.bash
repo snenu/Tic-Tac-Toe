@@ -34,6 +34,11 @@ for base in /build "$HOME"; do
     fi
   done
 done
+# Clear wallet so publish uses the chain we just request (old wallet has chains from previous run = Blobs not found)
+if [ -d "$HOME/.config/linera" ]; then
+  echo ">>> Clearing existing wallet (so we use fresh chain for publish)..."
+  rm -rf "$HOME/.config/linera" 2>/dev/null || true
+fi
 
 # Clear /tmp Linera dirs (helper may use e.g. /tmp/.tmpXXXX)
 for tmpd in /tmp/.tmp* /tmp/linera*; do
@@ -52,7 +57,8 @@ for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORA
     path="${!var}"
     path="${path#rocksdb:}"  # strip rocksdb: prefix if present
     if [ -f "$path" ]; then
-      path="$(dirname "$path")"
+      echo ">>> Clearing helper storage file ($path)..."
+      rm -f "$path" 2>/dev/null || true
     fi
     if [ -d "$path" ]; then
       echo ">>> Clearing helper storage path ($path)..."
@@ -61,16 +67,20 @@ for var in LINERA_NETWORK LINERA_NETWORK_DIR LINERA_STORAGE LINERA_NETWORK_STORA
   fi
 done 2>/dev/null || true
 
-# Final aggressive cleanup - find and remove ALL linera-* directories
+# Final aggressive cleanup - find and remove ALL linera-* directories (avoids "storage is already initialized")
 echo ">>> Final cleanup - removing all linera networks..."
-find /build /tmp "$HOME" -maxdepth 3 -type d -name "linera-*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r dir; do
+find /build /tmp "$HOME" -maxdepth 4 -type d -name "linera-*" ! -path "*/target/*" ! -path "*/node_modules/*" 2>/dev/null | while read -r dir; do
   if [ -d "$dir" ]; then
     echo "  - Force removing: $dir"
     rm -rf "$dir" 2>/dev/null || true
   fi
 done
+# Remove any .linera or linera db files under /tmp (helper often uses /tmp/.tmp*)
+find /tmp -maxdepth 2 \( -name ".tmp*" -o -name "linera*" \) -type d 2>/dev/null | while read -r dir; do
+  [ -d "$dir" ] && rm -rf "$dir" 2>/dev/null || true
+done
 
-sleep 1
+sleep 2
 
 # Start network (match reference: linera_spawn only, no grep/fallback)
 linera_spawn linera net up --with-faucet
@@ -101,6 +111,10 @@ CHAIN_OUTPUT=$(linera wallet request-chain --faucet="$LINERA_FAUCET_URL" 2>&1)
 CHAIN_ID=$(echo "$CHAIN_OUTPUT" | grep -oE '[a-f0-9]{64}' | head -1)
 set -e
 
+# Wait for the new chain to propagate to the validator (avoids ChainDescription "Blobs not found")
+echo ">>> Waiting for chain to propagate..."
+sleep 35
+
 echo ">>> Building Rust contract and service..."
 echo "  This may take 30-60 seconds..."
 cd /build
@@ -108,13 +122,50 @@ rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 cargo build --release --target wasm32-unknown-unknown -p tictactoe
 echo "  ✓ Build completed successfully"
 
-echo ">>> Publishing and creating application..."
-LINERA_APPLICATION_ID=$(linera --wait-for-outgoing-messages \
-  publish-and-create \
-  /build/target/wasm32-unknown-unknown/release/tictactoe_contract.wasm \
-  /build/target/wasm32-unknown-unknown/release/tictactoe_service.wasm \
-  --json-argument "null")
+# Wait so validator is ready for blob upload (avoids ContractBytecode/ServiceBytecode "Blobs not found" on first try)
+echo ">>> Waiting for validator before publish..."
+sleep 25
 
+echo ">>> Publishing and creating application..."
+LINERA_APPLICATION_ID=""
+for attempt in 1 2 3 4 5; do
+  # Linera CLI may exit 1 due to internal "xargs: kill" cleanup; treat success by presence of app ID in output
+  PUBLISH_OUT=$(linera --wait-for-outgoing-messages \
+    publish-and-create \
+    /build/target/wasm32-unknown-unknown/release/tictactoe_contract.wasm \
+    /build/target/wasm32-unknown-unknown/release/tictactoe_service.wasm \
+    --json-argument "null" 2>&1) || true
+  # Extract only the application ID (format: 64 hex chars, or 64hex:digits). Ignore log lines/timestamps.
+  LINERA_APPLICATION_ID=$(echo "$PUBLISH_OUT" | grep -oE '[a-f0-9]{64}(:[0-9]+)?' | tail -1)
+  if [ -z "$LINERA_APPLICATION_ID" ]; then
+    # Fallback: last line might be the ID only (some CLI versions output 64 hex or 64hex:digits)
+    last_line=$(echo "$PUBLISH_OUT" | tail -1 | tr -d '\r\n' | sed 's/[^0-9a-fA-F:]//g')
+    if echo "$last_line" | grep -qE '^[a-f0-9]{64}(:[0-9]+)?$'; then
+      LINERA_APPLICATION_ID=$last_line
+    fi
+  fi
+  if [ -n "$LINERA_APPLICATION_ID" ]; then
+    echo "  ✓ Application published: $LINERA_APPLICATION_ID"
+    break
+  fi
+  # No app ID in output - retry on blob/validator propagation errors (ContractBytecode, ServiceBytecode, ChainDescription)
+  if echo "$PUBLISH_OUT" | grep -q "Blobs not found\|Failed to communicate\|ContractBytecode\|ServiceBytecode"; then
+    echo ">>> Publish attempt $attempt failed (validator/blob propagation), retrying in 20s..."
+    echo "$PUBLISH_OUT" | head -3
+    sleep 20
+    LINERA_APPLICATION_ID=""
+  else
+    echo ">>> Publish failed (no application ID in output):" >&2
+    echo "$PUBLISH_OUT" | tail -20 >&2
+    exit 1
+  fi
+done
+if [ -z "$LINERA_APPLICATION_ID" ]; then
+  echo ">>> Failed to publish application after 5 attempts" >&2
+  exit 1
+fi
+# Application ID is already in correct form (64hex or 64hex:digits); ensure no stray chars
+LINERA_APPLICATION_ID=$(echo "$LINERA_APPLICATION_ID" | tr -d '\r\n' | sed 's/[^0-9a-fA-F:]//g')
 export VITE_LINERA_APPLICATION_ID=$LINERA_APPLICATION_ID
 
 echo ">>> Creating client .env file..."

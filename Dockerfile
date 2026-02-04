@@ -4,13 +4,14 @@ FROM rust:1.86-slim
 
 SHELL ["bash", "-c"]
 
-# Install system dependencies (including curl)
+# Install system dependencies (including curl and procps for Linera CLI cleanup)
 RUN apt-get update && apt-get install -y \
     pkg-config \
     protobuf-compiler \
     clang \
     make \
     curl \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Linera services (exact same as working   example)

@@ -12,4 +12,5 @@ services:
     - .:/build
     environment:
     - LINERA_FAUCET_URL=http://localhost:8080
-    restart: unless-stopped
+    # Restart only on failure so user sees errors; use "unless-stopped" for infinite retries
+    restart: on-failure
