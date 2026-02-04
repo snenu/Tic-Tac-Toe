@@ -243,7 +243,4 @@ If you see an error like "rustc 1.85.0 is not supported" or "requires rustc 1.86
 ## License
 
 This project is provided as-is for educational and demonstration purposes.
-
-## Acknowledgments
-
-Built using the [Linera Protocol](https://linera.io/) and inspired by the RPSv2 example.
+ 
